@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sight-reading trainer</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sight-reading">
+<meta name="theme-color" content="#191521">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+<style>
+  :root{
+    --felt:#191521;
+    --felt-deep:#120f19;
+    --panel:#221c2e;
+    --paper:#f4efe4;
+    --paper-edge:#d9d0bd;
+    --brass:#d3a24a;
+    --brass-dim:#8a6c33;
+    --ivory:#ece5d6;
+    --ivory-shade:#c4baa6;
+    --right:#7fae6f;
+    --wrong:#c2554a;
+    --text:#e8e2d6;
+    --text-mute:#8d8499;
+    --ease:cubic-bezier(.22,.7,.3,1);
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *,*::before,*::after{box-sizing:inherit}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:
+      radial-gradient(120% 80% at 50% 0%, #241d30 0%, var(--felt) 45%, var(--felt-deep) 100%);
+    color:var(--text);
+    font-family:Spectral,Georgia,'Times New Roman',serif;
+    font-weight:400;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+  }
+  main{
+    width:100%;
+    max-width:30rem;
+    padding:1.75rem 1.1rem 2.5rem;
+    display:flex;
+    flex-direction:column;
+    gap:1.1rem;
+  }
+
+  .masthead{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:1rem;
+    color:var(--text-mute);
+    font-size:.9rem;
+    letter-spacing:.01em;
+  }
+  .masthead b{font-weight:500;color:var(--text)}
+  .masthead em{font-style:italic;color:var(--brass);font-weight:400}
+
+  /* ---- the staff: the one bright object in the room ---- */
+  .paper{
+    background:linear-gradient(176deg,#fbf8f1,var(--paper) 60%,#eee7d8);
+    border:1px solid var(--paper-edge);
+    border-radius:3px;
+    box-shadow:0 18px 34px -18px #000, 0 2px 0 rgba(255,255,255,.04);
+    padding:.25rem .5rem;
+    overflow:hidden;
+  }
+  #staff{width:100%;min-height:190px}
+  #staff svg{display:block;width:100%;height:auto}
+  .settled{animation:settle .34s var(--ease) both}
+  @keyframes settle{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+  .loadfail{
+    font-size:.95rem;color:#5a4f3d;padding:3.5rem 1rem;text-align:center;line-height:1.6;
+  }
+
+  .verdict{
+    min-height:1.9rem;
+    text-align:center;
+    font-size:1.15rem;
+    font-weight:500;
+    letter-spacing:.02em;
+    color:var(--text-mute);
+    transition:color .18s linear;
+  }
+  .verdict.is-right{color:var(--right)}
+  .verdict.is-wrong{color:var(--wrong)}
+  .verdict small{font-size:.8em;font-weight:400;font-style:italic;opacity:.75}
+
+  /* ---- keys ---- */
+  .keys{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:.3rem;
+  }
+  .key{
+    appearance:none;
+    font:inherit;
+    font-size:1.25rem;
+    font-weight:500;
+    color:#2b2532;
+    background:linear-gradient(180deg,#fbf8f1,var(--ivory) 70%,var(--ivory-shade));
+    border:none;
+    border-radius:2px 2px 5px 5px;
+    padding:1.4rem 0 .7rem;
+    cursor:pointer;
+    box-shadow:0 4px 0 #9d947f, 0 8px 14px -6px #000;
+    transition:transform .07s linear, box-shadow .07s linear;
+    touch-action:manipulation;
+  }
+  .key:active,.key.pressed{
+    transform:translateY(3px);
+    box-shadow:0 1px 0 #9d947f, 0 4px 8px -5px #000;
+  }
+  .key:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+  .key.right{background:linear-gradient(180deg,#d9ecd2,#a9cf9b);box-shadow:0 4px 0 #6d9160,0 8px 14px -6px #000}
+  .key.wrong{background:linear-gradient(180deg,#f0cfc9,#dda49b);box-shadow:0 4px 0 #94463c,0 8px 14px -6px #000}
+  .keys[aria-disabled="true"] .key{cursor:default}
+
+  /* ---- stats ---- */
+  .stats{
+    margin:0;
+    display:flex;
+    justify-content:space-between;
+    gap:.5rem;
+    border-top:1px solid #2e2740;
+    border-bottom:1px solid #2e2740;
+    padding:.6rem .2rem;
+    font-size:.88rem;
+    color:var(--text-mute);
+  }
+  .stats div{display:flex;gap:.4rem;align-items:baseline}
+  .stats span{color:var(--text);font-weight:500;font-variant-numeric:tabular-nums}
+
+  /* ---- settings ---- */
+  .settings{display:flex;flex-direction:column;gap:.55rem}
+  .row{display:flex;gap:.35rem;align-items:center;flex-wrap:wrap}
+  .row > .label{
+    font-style:italic;color:var(--text-mute);font-size:.85rem;
+    flex:0 0 3.6rem;
+  }
+  .opt{
+    appearance:none;font:inherit;font-size:.85rem;
+    background:var(--panel);color:var(--text-mute);
+    border:1px solid #302943;border-radius:999px;
+    padding:.3rem .8rem;cursor:pointer;
+    transition:color .15s linear, border-color .15s linear, background .15s linear;
+  }
+  .opt:hover{color:var(--text)}
+  .opt[aria-pressed="true"]{color:#1d1726;background:var(--brass);border-color:var(--brass);font-weight:500}
+  .opt:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+  .reset{
+    align-self:flex-start;background:none;border:none;font:inherit;font-size:.82rem;
+    font-style:italic;color:var(--brass-dim);cursor:pointer;padding:.2rem 0;text-decoration:underline;
+    text-underline-offset:3px;
+  }
+  .reset:hover{color:var(--brass)}
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="masthead">
+    <b>Sight-reading</b>
+    <em id="clefWord">treble clef</em>
+  </div>
+
+  <section class="paper" aria-label="Music staff">
+    <div id="staff"><div class="loadfail" id="fallback" hidden>The notation engine didn’t load. Check your connection and reload the page.</div></div>
+  </section>
+
+  <p class="verdict" id="verdict" role="status" aria-live="polite">Name the note.</p>
+
+  <div class="keys" id="keys"></div>
+
+  <dl class="stats">
+    <div><dt>streak</dt><dd><span id="streak">0</span></dd></div>
+    <div><dt>best</dt><dd><span id="best">0</span></dd></div>
+    <div><dt>correct</dt><dd><span id="acc">—</span></dd></div>
+    <div><dt>pace</dt><dd><span id="pace">—</span></dd></div>
+  </dl>
+
+  <div class="settings">
+    <div class="row" id="clefRow"><span class="label">clef</span></div>
+    <div class="row" id="rangeRow"><span class="label">range</span></div>
+    <button class="reset" id="reset">Start a fresh session</button>
+  </div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var LETTERS = ['C','D','E','F','G','A','B'];
+
+  // diatonic number: octave*7 + letter index
+  function fromDn(n){ return { letter: LETTERS[((n%7)+7)%7], oct: Math.floor(n/7) }; }
+
+  var RANGES = {
+    treble:{ staff:[30,38], ledger:[28,40] },   // E4–F5  /  C4–A5
+    bass:  { staff:[18,26], ledger:[16,28] }    // G2–A3  /  E2–C4
+  };
+
+  var state = {
+    clef:'treble',          // treble | bass | both
+    range:'staff',          // staff | ledger
+    activeClef:'treble',
+    dn:null,
+    locked:false,
+    asked:0, right:0, streak:0, best:0,
+    times:[], shownAt:0
+  };
+
+  // ---------- storage ----------
+  function load(){
+    try{
+      var raw = localStorage.getItem('sightreading');
+      if(!raw) return;
+      var s = JSON.parse(raw);
+      if(s.clef) state.clef = s.clef;
+      if(s.range) state.range = s.range;
+      if(typeof s.best === 'number') state.best = s.best;
+    }catch(e){}
+  }
+  function save(){
+    try{
+      localStorage.setItem('sightreading', JSON.stringify({clef:state.clef, range:state.range, best:state.best}));
+    }catch(e){}
+  }
+
+  // ---------- notation ----------
+  var VF = (window.Vex && window.Vex.Flow) || null;
+  var staffEl = document.getElementById('staff');
+
+  function drawNote(colour){
+    if(!VF || state.dn === null) return;
+    var p = fromDn(state.dn);
+    var w = staffEl.clientWidth || 320;
+    var h = 190;
+    staffEl.innerHTML = '';
+    var renderer = new VF.Renderer(staffEl, VF.Renderer.Backends.SVG);
+    renderer.resize(w, h);
+    var ctx = renderer.getContext();
+
+    var stave = new VF.Stave(3, 46, w - 6);
+    stave.addClef(state.activeClef);
+    stave.setEndBarType(VF.Barline.type.NONE);
+    stave.setContext(ctx).draw();
+
+    var note = new VF.StaveNote({
+      keys:[p.letter.toLowerCase() + '/' + p.oct],
+      duration:'w',
+      clef: state.activeClef
+    });
+    if(colour) note.setStyle({fillStyle:colour, strokeStyle:colour});
+
+    var voice = new VF.Voice({num_beats:4, beat_value:4});
+    voice.addTickables([note]);
+    new VF.Formatter().joinVoices([voice]).format([voice], Math.max(60, w - 120));
+    voice.draw(ctx, stave);
+
+    var svg = staffEl.querySelector('svg');
+    if(svg){ svg.setAttribute('role','img'); svg.setAttribute('aria-label','A note on the ' + state.activeClef + ' staff'); }
+  }
+
+  // ---------- rounds ----------
+  function pickNote(){
+    if(state.clef === 'both'){
+      state.activeClef = Math.random() < 0.5 ? 'treble' : 'bass';
+    } else {
+      state.activeClef = state.clef;
+    }
+    var r = RANGES[state.activeClef][state.range];
+    var next, guard = 0;
+    do { next = r[0] + Math.floor(Math.random() * (r[1] - r[0] + 1)); guard++; }
+    while(next === state.dn && guard < 20);
+    state.dn = next;
+  }
+
+  function nextRound(){
+    pickNote();
+    state.locked = false;
+    document.getElementById('clefWord').textContent = state.activeClef + ' clef';
+    var v = document.getElementById('verdict');
+    v.className = 'verdict';
+    v.textContent = 'Name the note.';
+    keyEls.forEach(function(k){ k.className = 'key'; });
+    document.getElementById('keys').setAttribute('aria-disabled','false');
+    drawNote(null);
+    var paper = staffEl.querySelector('svg');
+    if(paper){ paper.classList.remove('settled'); void paper.offsetWidth; paper.classList.add('settled'); }
+    state.shownAt = performance.now();
+  }
+
+  function answer(letter){
+    if(state.locked || state.dn === null) return;
+    state.locked = true;
+    document.getElementById('keys').setAttribute('aria-disabled','true');
+
+    var truth = fromDn(state.dn);
+    var ok = (letter === truth.letter);
+    var elapsed = (performance.now() - state.shownAt) / 1000;
+
+    state.asked++;
+    if(ok){
+      state.right++;
+      state.streak++;
+      state.times.push(elapsed);
+      if(state.streak > state.best){ state.best = state.streak; save(); }
+    } else {
+      state.streak = 0;
+    }
+
+    keyEls.forEach(function(k){
+      if(k.dataset.letter === truth.letter) k.classList.add('right');
+      if(!ok && k.dataset.letter === letter) k.classList.add('wrong');
+    });
+
+    var v = document.getElementById('verdict');
+    v.className = 'verdict ' + (ok ? 'is-right' : 'is-wrong');
+    v.innerHTML = (ok ? 'Yes — ' : 'It was ') + truth.letter + ' <small>' + truth.letter + truth.oct + '</small>';
+
+    drawNote(ok ? '#4b7a3f' : '#a83c30');
+    paint();
+    setTimeout(nextRound, ok ? 620 : 1250);
+  }
+
+  function paint(){
+    document.getElementById('streak').textContent = state.streak;
+    document.getElementById('best').textContent = state.best;
+    document.getElementById('acc').textContent = state.asked
+      ? Math.round(state.right / state.asked * 100) + '%  ' + state.right + '/' + state.asked
+      : '—';
+    if(state.times.length){
+      var sorted = state.times.slice().sort(function(a,b){return a-b;});
+      var med = sorted[Math.floor(sorted.length/2)];
+      document.getElementById('pace').textContent = med.toFixed(1) + 's';
+    } else {
+      document.getElementById('pace').textContent = '—';
+    }
+  }
+
+  // ---------- keys ----------
+  var keyEls = [];
+  (function buildKeys(){
+    var wrap = document.getElementById('keys');
+    LETTERS.forEach(function(L){
+      var b = document.createElement('button');
+      b.className = 'key';
+      b.type = 'button';
+      b.textContent = L;
+      b.dataset.letter = L;
+      b.addEventListener('click', function(){ answer(L); });
+      wrap.appendChild(b);
+      keyEls.push(b);
+    });
+  })();
+
+  document.addEventListener('keydown', function(e){
+    if(e.metaKey || e.ctrlKey || e.altKey) return;
+    var L = e.key.toUpperCase();
+    if(LETTERS.indexOf(L) === -1) return;
+    var btn = keyEls.filter(function(k){ return k.dataset.letter === L; })[0];
+    if(btn && !state.locked){
+      btn.classList.add('pressed');
+      setTimeout(function(){ btn.classList.remove('pressed'); }, 90);
+    }
+    answer(L);
+  });
+
+  // ---------- settings ----------
+  function buildOptions(rowId, options, get, set){
+    var row = document.getElementById(rowId);
+    options.forEach(function(o){
+      var b = document.createElement('button');
+      b.className = 'opt';
+      b.type = 'button';
+      b.textContent = o.label;
+      b.addEventListener('click', function(){
+        set(o.value);
+        save();
+        row.querySelectorAll('.opt').forEach(function(x){
+          x.setAttribute('aria-pressed', String(x === b));
+        });
+        nextRound();
+      });
+      b.setAttribute('aria-pressed', String(get() === o.value));
+      row.appendChild(b);
+    });
+  }
+
+  buildOptions('clefRow', [
+    {label:'Treble', value:'treble'},
+    {label:'Bass', value:'bass'},
+    {label:'Both', value:'both'}
+  ], function(){ return state.clef; }, function(v){ state.clef = v; });
+
+  buildOptions('rangeRow', [
+    {label:'On the staff', value:'staff'},
+    {label:'With ledger lines', value:'ledger'}
+  ], function(){ return state.range; }, function(v){ state.range = v; });
+
+  document.getElementById('reset').addEventListener('click', function(){
+    state.asked = 0; state.right = 0; state.streak = 0; state.times = [];
+    paint();
+    nextRound();
+  });
+
+  // ---------- go ----------
+  load();
+  document.querySelectorAll('#clefRow .opt').forEach(function(b,i){
+    b.setAttribute('aria-pressed', String(['treble','bass','both'][i] === state.clef));
+  });
+  document.querySelectorAll('#rangeRow .opt').forEach(function(b,i){
+    b.setAttribute('aria-pressed', String(['staff','ledger'][i] === state.range));
+  });
+
+  if(!VF){
+    document.getElementById('fallback').hidden = false;
+  } else {
+    paint();
+    nextRound();
+    var t;
+    window.addEventListener('resize', function(){
+      clearTimeout(t);
+      t = setTimeout(function(){ drawNote(null); }, 150);
+    });
+  }
+})();
+</script>
+</body>
+</html>
